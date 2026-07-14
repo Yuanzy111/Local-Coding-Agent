@@ -102,7 +102,7 @@ def test_run_recovery_ablation_v2_writes_expected_artifact(tmp_path):
     }
 
 
-def test_write_benchmark_core_report_marks_resume_safe_metrics(tmp_path):
+def test_write_benchmark_core_report_lists_headline_and_diagnostic_metrics(tmp_path):
     run_context_ablation_v2(tmp_path / "artifacts" / "context-ablation-v2.json", repetitions=1)
     run_memory_ablation_v2(tmp_path / "artifacts" / "memory-ablation-v2.json", repetitions=1)
     run_recovery_ablation_v2(tmp_path / "artifacts" / "recovery-ablation-v2.json", repetitions=1)
@@ -122,7 +122,8 @@ def test_write_benchmark_core_report_marks_resume_safe_metrics(tmp_path):
     )
 
     assert report_path.exists()
-    assert "可以安全写进简历的指标" in report_text
-    assert "只适合放文档/面试展开的指标" in report_text
+    assert "Headline Metrics" in report_text
+    assert "Diagnostic Metrics" in report_text
+    assert "Scope Notes" in report_text
     assert "resume_success_rate" in report_text
     assert "memory_hit_rate" in report_text

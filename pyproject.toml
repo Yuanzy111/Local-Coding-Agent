@@ -3,14 +3,15 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pico"
+name = "local-coding-agent"
 version = "0.1.0"
-description = "Small local coding agent for DeepSeek, OpenAI-compatible, Anthropic-compatible, and Ollama models"
+description = "Local terminal coding agent for repository-grounded engineering tasks"
 requires-python = ">=3.10"
 dependencies = []
 
 [project.scripts]
 pico = "pico.cli:main"
+local-coding-agent = "pico.cli:main"
 
 [dependency-groups]
 dev = [

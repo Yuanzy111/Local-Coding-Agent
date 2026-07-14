@@ -1,42 +1,59 @@
-# pico
+# Local Coding Agent
 
-`pico` 是一个面向代码仓库的轻量本地 coding agent。它直接跑在终端里，先看当前工作区，再用一组受约束的工具去读文件、改文件、跑命令，并把会话状态保存在本地 `.pico/` 目录里。
+`Local Coding Agent` 是一个面向代码仓库的本地终端 Coding Agent。它直接运行在工作区内，通过受约束的工具读取文件、编辑代码、执行命令，并把会话状态和运行工件持久化到本地 `.pico/` 目录。
 
-它更像一个能在仓库里持续工作的命令行助手，不是纯聊天窗口。你可以拿它做代码排查、测试修复、仓库分析，或者让它在当前项目里执行一次性的工程任务。
+这个项目关注的重点不是“聊天体验”，而是让模型在真实仓库里以可控、可追踪、可恢复的方式完成工程任务，例如代码检索、问题定位、测试修复和中断任务恢复。
 
-## 适合做什么
+## 项目定位
 
-- 在本地仓库里排查测试失败
-- 读取当前代码结构并给出修改建议
-- 基于现有文件做小步迭代，而不是脱离仓库空想
-- 在会话中保留上下文，支持继续上一次工作
+项目当前围绕一个完整的 Agent Harness 展开，覆盖模型 Provider、Agent Runtime、工具执行、会话状态管理和运行工件持久化，目标是在本地仓库中形成闭环的任务执行系统，而不是一次性的 prompt 包装器。
 
-## 主要特性
+如果你想看运行时结构，可以从 [docs/architecture/agent-harness-v1-overview.md](docs/architecture/agent-harness-v1-overview.md) 开始。
 
-- 包名是 `pico`
-- CLI 命令是 `pico`
-- 模块入口是 `python -m pico`
-- 会话保存在 `.pico/sessions/`
-- 每次运行的工件保存在 `.pico/runs/<run_id>/`
-- 支持四类模型后端：
-  - Ollama
-  - OpenAI 兼容 Responses API
-  - Anthropic 兼容 Messages API
-  - DeepSeek Anthropic 兼容 API
+## 核心能力
+
+- Agent Harness：统一 Provider 适配、任务状态、工具调用策略和运行工件写出。
+- 分层上下文管理：按任务状态、摘要信息和文件片段组织上下文，并基于预算裁剪 prompt。
+- 结构化记忆：用任务摘要、文件摘要和过程笔记保存阶段性认知，减少重复读取和重复推理。
+- Checkpoint / Resume：支持中断恢复，并在恢复前识别工作区漂移，避免错误续跑。
+- 工具安全控制：覆盖参数校验、工作区隔离、高风险操作审批、敏感信息脱敏和部分成功识别。
+- 多模型后端：支持 Ollama、OpenAI 兼容 Responses API、Anthropic 兼容 Messages API 和 DeepSeek Anthropic 兼容 API。
+
+## 评测结果
+
+- 在 12 组上下文管理消融实验中，平均 Prompt 长度从 6994 字符降到 5576 字符，平均压缩率 16.36%，最高压缩率 33.59%。
+- 在 12 个记忆依赖任务中，后续阶段重复文件读取次数从 60 次降到 0 次，任务正确率达到 100%。
+- 在 10 个 checkpoint / resume 中断恢复场景中，恢复成功率达到 90%，工作区漂移识别率达到 100%，未出现错误恢复。
+- 在 12 个固定回归任务中，任务通过率、预算满足率和验证器通过率均达到 100%。
+
+## 适用场景
+
+- 在本地仓库里排查测试失败并尝试修复
+- 读取现有代码结构后给出修改建议或直接实施小步修改
+- 处理依赖上下文连续性的多阶段任务，而不是每轮重新读取整个仓库
+- 在任务中断后基于 checkpoint 恢复执行，并保留可审计的运行痕迹
+
+## 运行方式
+
+- 包分发名：`local-coding-agent`
+- CLI 命令：`local-coding-agent`（兼容别名：`pico`）
+- 模块入口：`python -m pico`
+- 会话目录：`.pico/sessions/`
+- 运行工件目录：`.pico/runs/<run_id>/`
 
 ## 使用截图
 
 CLI 帮助信息：
 
-![pico help](assets/screenshots/pico-help.png)
+![Local Coding Agent help](assets/screenshots/pico-help.png)
 
 启动界面：
 
-![pico start](assets/screenshots/pico-start.png)
+![Local Coding Agent start](assets/screenshots/pico-start.png)
 
 REPL 内置命令与会话路径：
 
-![pico repl](assets/screenshots/pico-repl.png)
+![Local Coding Agent repl](assets/screenshots/pico-repl.png)
 
 ## 安装
 
@@ -59,19 +76,19 @@ pip install -e .
 在当前仓库里启动交互模式。默认 provider 是 DeepSeek：
 
 ```bash
-uv run pico
+uv run local-coding-agent
 ```
 
 指定另一个工作目录：
 
 ```bash
-uv run pico --cwd /path/to/repo
+uv run local-coding-agent --cwd /path/to/repo
 ```
 
 直接跑一次性任务：
 
 ```bash
-uv run pico "inspect the test failures and propose a fix"
+uv run local-coding-agent "inspect the test failures and propose a fix"
 ```
 
 如果当前环境已经安装过包，也可以直接这样启动：
@@ -82,7 +99,7 @@ python -m pico
 
 ## 模型后端
 
-Pico 启动时会读取项目根目录的 `.env`。本地真实 key 放在 `.env`，仓库只保留 `.env.example`。配置优先级是：
+Local Coding Agent 启动时会读取项目根目录的 `.env`。本地真实 key 放在 `.env`，仓库只保留 `.env.example`。配置优先级是：
 
 ```text
 显式 CLI 参数 > .env 里的 PICO_* 变量 > 旧环境变量 > 代码默认值
@@ -124,20 +141,20 @@ PICO_DEEPSEEK_MODEL="deepseek-v4-pro"
 所以常规情况下 `.env` 里只填 `PICO_DEEPSEEK_API_KEY` 就能直接启动：
 
 ```bash
-uv run pico
+uv run local-coding-agent
 ```
 
 如果你需要临时切模型或代理地址，不必改 `.env`，可以直接覆盖：
 
 ```bash
-uv run pico --model deepseek-v4-pro --base-url https://api.deepseek.com/anthropic
+uv run local-coding-agent --model deepseek-v4-pro --base-url https://api.deepseek.com/anthropic
 ```
 
 DeepSeek 当前走 Anthropic-compatible Messages API，所以 runtime 里复用的是 Anthropic-compatible client；这只影响 HTTP 协议，不影响 CLI 用法。
 
 ### 可选配置：right.codes
 
-right.codes 在 Pico 里有两条可选 provider 路径：
+right.codes 在 Local Coding Agent 里有两条可选 provider 路径：
 
 - `--provider openai`：走 OpenAI-compatible `/responses`，默认 base URL 是 `https://www.right.codes/codex/v1`，默认模型是 `gpt-5.4`
 - `--provider anthropic`：走 Anthropic-compatible `/messages`，默认 base URL 是 `https://www.right.codes/claude/v1`，默认模型是 `claude-sonnet-4-6`
@@ -151,8 +168,8 @@ PICO_RIGHT_CODES_API_KEY="your-right-codes-key"
 然后按需要选择 provider：
 
 ```bash
-uv run pico --provider openai
-uv run pico --provider anthropic
+uv run local-coding-agent --provider openai
+uv run local-coding-agent --provider anthropic
 ```
 
 如果你想显式区分两条 provider 的 key，也可以分别配置：
@@ -162,7 +179,7 @@ PICO_OPENAI_API_KEY="your-right-codes-key-for-codex"
 PICO_ANTHROPIC_API_KEY="your-right-codes-key-for-claude"
 ```
 
-不要在 `.env` 里写 `PICO_OPENAI_API_KEY=$PICO_RIGHT_CODES_API_KEY` 这种 shell 展开形式；Pico 的 `.env` 解析器只读取字面量，不展开变量引用。要么只写 `PICO_RIGHT_CODES_API_KEY`，要么把 key 字符串分别填到 provider-specific 变量里。
+不要在 `.env` 里写 `PICO_OPENAI_API_KEY=$PICO_RIGHT_CODES_API_KEY` 这种 shell 展开形式；Local Coding Agent 的 `.env` 解析器只读取字面量，不展开变量引用。要么只写 `PICO_RIGHT_CODES_API_KEY`，要么把 key 字符串分别填到 provider-specific 变量里。
 
 如果请求 right.codes 返回 `API Key额度不足`，说明协议和 endpoint 已经打通，但当前 key 没有可用额度；换一把有额度的 key，或到 right.codes 后台处理额度。
 
@@ -182,7 +199,7 @@ PICO_ANTHROPIC_API_KEY="your-right-codes-key-for-claude"
 如果要改用 OpenAI-compatible `/responses` 服务，显式传 `--provider openai`：
 
 ```bash
-uv run pico --provider openai
+uv run local-coding-agent --provider openai
 ```
 
 默认 OpenAI 兼容接口使用 right.codes 的 Codex endpoint：
@@ -206,7 +223,7 @@ PICO_OPENAI_MODEL="gpt-5.4"
 如果要改用 Anthropic-compatible 服务，显式传 `--provider anthropic`：
 
 ```bash
-uv run pico --provider anthropic
+uv run local-coding-agent --provider anthropic
 ```
 
 默认 Anthropic 兼容接口使用 right.codes 的 Claude endpoint：
@@ -217,7 +234,7 @@ PICO_RIGHT_CODES_API_KEY="your-right-codes-key"
 PICO_ANTHROPIC_MODEL="claude-sonnet-4-6"
 ```
 
-如果你的服务端对多个兼容接口复用了同一套密钥，`pico` 也支持从 `PICO_ANTHROPIC_API_KEY` 回退到 `ANTHROPIC_API_KEY`、`PICO_RIGHT_CODES_API_KEY`、`RIGHT_CODES_API_KEY`、`PICO_OPENAI_API_KEY` 或 `OPENAI_API_KEY`。
+如果你的服务端对多个兼容接口复用了同一套密钥，当前实现也支持从 `PICO_ANTHROPIC_API_KEY` 回退到 `ANTHROPIC_API_KEY`、`PICO_RIGHT_CODES_API_KEY`、`RIGHT_CODES_API_KEY`、`PICO_OPENAI_API_KEY` 或 `OPENAI_API_KEY`。
 
 ### Ollama
 
@@ -226,7 +243,7 @@ PICO_ANTHROPIC_MODEL="claude-sonnet-4-6"
 ```bash
 ollama serve
 ollama pull qwen3.5:4b
-uv run pico --provider ollama --model qwen3.5:4b
+uv run local-coding-agent --provider ollama --model qwen3.5:4b
 ```
 
 ## 常用交互命令
@@ -239,7 +256,7 @@ uv run pico --provider ollama --model qwen3.5:4b
 
 ## 安全与持久化
 
-`pico` 不会默认把所有动作都放开。像 shell 执行、文件写入这类高风险操作，会受审批模式控制：
+Local Coding Agent 默认不会把所有动作都放开。像 shell 执行、文件写入这类高风险操作，会受审批模式控制：
 
 - `--approval ask`
 - `--approval auto`
@@ -252,6 +269,15 @@ uv run pico --provider ollama --model qwen3.5:4b
 - `report.json`
 
 这些内容默认只保存在本地，不需要跟仓库一起提交。
+
+## Benchmark Artifacts
+
+仓库内保留了一套可复核的 benchmark 归档，用来证明 runtime 回归稳定性、上下文治理收益、结构化记忆收益和 checkpoint / resume 恢复边界：
+
+- [核心 benchmark 报告](benchmarks/results/main-benchmark-repro-2026-06-07/pico-benchmark-core-report.md)
+- [数据来源说明](benchmarks/results/main-benchmark-repro-2026-06-07/DATA_PROVENANCE.md)
+
+这些归档是固定实验结果，不是线上业务统计。
 
 ## 开发
 
